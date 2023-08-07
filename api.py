@@ -25,13 +25,12 @@ def __post_request(url, json_data):
         sys.exit(f"API {url}: {rsp['type']} - {rsp['msg']}")
 
 
-def add_user(email, name, active, quotum):
+def add_user(email, name, active):
     password = ''.join(random.choices(string.ascii_letters + string.digits, k=20))
     json_data = {
         'local_part': email.split('@')[0],
         'domain': email.split('@')[1],
         'name': name,
-        'quota': str(quotum),
         'password': password,
         'password2': password,
         "active": 1 if active else 2 # Active: 0 = no incoming mail/no login, 1 = allow both, 2 = custom state: allow incoming mail/no login
