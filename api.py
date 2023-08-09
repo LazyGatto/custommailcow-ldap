@@ -33,6 +33,7 @@ def add_user(email, name, active):
         'name': name,
         'password': password,
         'password2': password,
+        'quota': str(api_quota),
         "active": 1 if active else 2 # Active: 0 = no incoming mail/no login, 1 = allow both, 2 = custom state: allow incoming mail/no login
     }
 

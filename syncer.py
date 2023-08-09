@@ -33,6 +33,7 @@ def main():
 
     api.api_host = config['API_HOST']
     api.api_key = config['API_KEY']
+    api.api_quota = config['API_QUOTA']
 
     while True:
         sync()
@@ -146,6 +147,7 @@ def read_config():
         'LDAP-MAILCOW_LDAP_BIND_DN_PASSWORD',
         'LDAP-MAILCOW_API_HOST',
         'LDAP-MAILCOW_API_KEY',
+        'LDAP-MAILCOW_API_QUOTA',
         'LDAP-MAILCOW_SYNC_INTERVAL'
     ]
 

@@ -17,39 +17,48 @@ A python script periodically checks and creates new LDAP accounts and deactivate
 ## Usage
 
 1. Create a `data/ldap` directory. SQLite database for synchronization will be stored there.
-2. Extend your `docker-compose.override.yml` with an additional container:
+2. Create (or update) your `docker-compose.override.yml` with an additional container:
 
     ```yaml
-    ldap-mailcow:
-        image: programmierus/ldap-mailcow
-        network_mode: host
-        container_name: mailcowcustomized_ldap-mailcow
-        depends_on:
-            - nginx-mailcow
-        volumes:
-            - ./data/ldap:/db:rw
-            - ./data/conf/dovecot:/conf/dovecot:rw
-            - ./data/conf/sogo:/conf/sogo:rw
-        environment:
-            - LDAP-MAILCOW_LDAP_URI=ldap(s)://dc.example.local
-            - LDAP-MAILCOW_LDAP_BASE_DN=OU=Mail Users,DC=example,DC=local
-            - LDAP-MAILCOW_LDAP_BIND_DN=CN=Bind DN,CN=Users,DC=example,DC=local
-            - LDAP-MAILCOW_LDAP_BIND_DN_PASSWORD=BindPassword
-            - LDAP-MAILCOW_API_HOST=https://mailcow.example.local
-            - LDAP-MAILCOW_API_KEY=XXXXXX-XXXXXX-XXXXXX-XXXXXX-XXXXXX
-            - LDAP-MAILCOW_SYNC_INTERVAL=300
-            - LDAP-MAILCOW_LDAP_FILTER=(&(objectClass=user)(objectCategory=person)(memberOf:1.2.840.113556.1.4.1941:=CN=Group,CN=Users,DC=example DC=local))
-            - LDAP-MAILCOW_SOGO_LDAP_FILTER=objectClass='user' AND objectCategory='person' AND memberOf:1.2.840.113556.1.4.1941:='CN=Group,CN=Users,DC=example DC=local'
+    version: '2.1'
+    services:
+
+        ldap-mailcow:
+            image: 'ghcr.io/lazygatto/custommailcow-ldap:latest'
+            network_mode: host
+            container_name: mailcowcustomized_ldap-mailcow
+            depends_on:
+                - nginx-mailcow
+            volumes:
+                - ./data/ldap:/db:rw
+                - ./data/conf/dovecot:/conf/dovecot:rw
+                - ./data/conf/sogo:/conf/sogo:rw
+            environment:
+                - LDAP-MAILCOW_LDAP_URI=ldap(s)://dc.example.local
+                - LDAP-MAILCOW_LDAP_GC_URI=ldap://dc.example.local:3268
+                - LDAP-MAILCOW_LDAP_DOMAIN=domain.com
+                - LDAP-MAILCOW_LDAP_BASE_DN=OU=Mail Users,DC=example,DC=local
+                - LDAP-MAILCOW_LDAP_BIND_DN=CN=Bind DN,CN=Users,DC=example,DC=local
+                - LDAP-MAILCOW_LDAP_BIND_DN_PASSWORD=BindPassword
+                - LDAP-MAILCOW_API_HOST=https://mailcow.example.local
+                - LDAP-MAILCOW_API_KEY=XXXXXX-XXXXXX-XXXXXX-XXXXXX-XXXXXX
+                - LDAP-MAILCOW_API_QUOTA=3072
+                - LDAP-MAILCOW_SYNC_INTERVAL=300
+                - LDAP-MAILCOW_LDAP_FILTER=(&(objectClass=user)(objectCategory=person)(memberOf:1.2.840.113556.1.4.1941:=CN=Group,CN=Users,DC=example DC=local))
+                - LDAP-MAILCOW_SOGO_LDAP_FILTER=objectClass='user' AND objectCategory='person' AND memberOf:1.2.840.113556.1.4.1941:='CN=Group,CN=Users,DC=example DC=local'
     ```
 
 3. Configure environmental variables:
 
     * `LDAP-MAILCOW_LDAP_URI` - LDAP (e.g., Active Directory) URI (must be reachable from within the container). The URIs are in syntax `protocol://host:port`. For example `ldap://localhost` or `ldaps://secure.domain.org`
+    * `LDAP-MAILCOW_LDAP_GC_URI` - LDAP (e.g., Active Directory) Global Catalog URI (must be reachable from within the container). The URIs are in syntax `protocol://host:port`. For example `ldap://localhost:3268` or `ldaps://secure.domain.org:3269`
+    * `LDAP-MAILCOW_LDAP_DOMAIN` - domain for you mail account, ie `domain.com`
     * `LDAP-MAILCOW_LDAP_BASE_DN` - base DN where user accounts can be found
     * `LDAP-MAILCOW_LDAP_BIND_DN` - bind DN of a special LDAP account that will be used to browse for users
     * `LDAP-MAILCOW_LDAP_BIND_DN_PASSWORD` - password for bind DN account
     * `LDAP-MAILCOW_API_HOST` - mailcow API url. Make sure it's enabled and accessible from within the container for both reads and writes
     * `LDAP-MAILCOW_API_KEY` - mailcow API key (read/write)
+    * `LDAP-MAILCOW_API_QUOTA` - mailcow qouta for new mailboxes, in MB, ie 3072 for 3GB. If set to 0 quota will be disabled.
     * `LDAP-MAILCOW_SYNC_INTERVAL` - interval in seconds between LDAP synchronizations
     * **Optional** LDAP filters (see example above). SOGo uses special syntax, so you either have to **specify both or none**:
         * `LDAP-MAILCOW_LDAP_FILTER` - LDAP filter to apply, defaults to `(&(objectClass=user)(objectCategory=person))`
@@ -92,8 +101,7 @@ Users from your LDAP directory will be added (and deactivated if disabled/not fo
 
 ## Customizations and Integration support
 
-External authentication (identity federation) is an enterprise feature [for mailcow](https://github.com/mailcow/mailcow-dockerized/issues/2316#issuecomment-491212921). That’s why I developed an external solution, and it is unlikely that it’ll be ever directly integrated into mailcow.
+Original tool was created by [Programmierus](https://github.com/Programmierus/ldap-mailcow).
+This version is fork from fork by [rinkp](https://github.com/rinkp/custommailcow-ldap)
 
-I’ve created this tool because I needed it for my regular work. You are free to use it for commercial needs. Please understand that I can work on issues only if they fall within the scope of my current work interests or if I’ll have some available free time (never happened for many years). I’ll do my best to review submitted PRs ASAP, though.
-
-**You can always [contact me](mailto:programmierus@gmail.com) to help you with the integration or for custom modifications on a paid basis. My current hourly rate (ActivityWatch tracked) is 100,-€ with 3h minimum commitment.**
+**You can always [contact me](mailto:lazygatto@gmail.com) to help you with the integration or for custom modifications on a paid basis. My current hourly rate (ActivityWatch tracked) is 50$ with 3h minimum commitment.**
