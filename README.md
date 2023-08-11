@@ -1,9 +1,10 @@
 # LDAP_MAILCOW
 
-Adds LDAP accounts to mailcow-dockerized and enables LDAP (e.g., Active Directory) authentication.
+Adds LDAP accounts, user aliases and group aliases to mailcow-dockerized and enables LDAP (e.g., Active Directory) authentication.
 
 * [How does it work](#how-does-it-work)
 * [Usage](#usage)
+  * [User Aliases](#user-aliases)
   * [LDAP Fine-tuning](#ldap-fine-tuning)
 * [Limitations](#limitations)
   * [WebUI and EAS authentication](#webui-and-eas-authentication)
@@ -16,7 +17,7 @@ A python script periodically checks and creates new LDAP accounts and deactivate
 
 ## Usage
 
-1. Create a `data/ldap` directory. SQLite database for synchronization will be stored there.
+1. Create a `data/db` directory. SQLite database for synchronization will be stored there.
 2. Create (or update) your `docker-compose.override.yml` with an additional container:
 
     ```yaml
@@ -73,6 +74,12 @@ A python script periodically checks and creates new LDAP accounts and deactivate
 5. Check logs `docker compose logs LDAP_MAILCOW`
 6. Restart dovecot and SOGo if necessary `docker compose restart sogo-mailcow dovecot-mailcow`
 
+### User Aliases
+
+This version has support for user aliases too. They needed to be set in Active Directory in `proxyAddresses` attribute.
+Format records in such way: `smtp:username@domain.com`
+You can add as many aliases as you need for every user.
+
 ### LDAP Fine-tuning
 
 Container internally uses the following configuration templates:
@@ -80,7 +87,10 @@ Container internally uses the following configuration templates:
 * SOGo: `/templates/sogo/plist_ldap`
 * dovecot: `/templates/dovecot/ldap/passdb.conf`
 
-These files have been tested against Active Directory running on Windows Server 2019 domain controller. If necessary, you can edit and remount them through docker volumes. Some documentation on these files can be found here: [dovecot](https://doc.dovecot.org/configuration_manual/authentication/ldap/), [SOGo](https://sogo.nu/files/docs/SOGoInstallationGuide.html#_authentication_using_ldap)
+This version was written and tested only at Active Directory running on Windows Server 2019 domain controller.
+So, I dont know how it will sync with OpenLDAP or any other LDAP implementation.
+
+If necessary, you can edit and remount them through docker volumes. Some documentation on these files can be found here: [dovecot](https://doc.dovecot.org/configuration_manual/authentication/ldap/), [SOGo](https://sogo.nu/files/docs/SOGoInstallationGuide.html#_authentication_using_ldap)
 
 ## Limitations
 

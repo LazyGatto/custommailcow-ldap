@@ -51,12 +51,12 @@ def sync():
     ldap_connector.simple_bind_s(config['LDAP_BIND_DN'], config['LDAP_BIND_DN_PASSWORD'])
 
     filedb.session_time = datetime.datetime.now()
-    
-    logging.info("=== Iterate LDAP Users (Mailboxes) ===")
+
+    logging.info("=== Iterate LDAP Users (Mailboxes And Aliases) ===")
 
     ldap_results = ldap_connector.search_s(config['LDAP_BASE_DN'], ldap.SCOPE_SUBTREE,
                                            config['LDAP_FILTER'],
-                                           ['mail', 'displayName', 'userAccountControl'])
+                                           ['mail', 'displayName', 'userAccountControl', 'proxyAddresses'])
 
     for x in ldap_results:
         try:
@@ -75,34 +75,67 @@ def sync():
             if not db_user_exists:
                 filedb.add_user(email, ldap_active)
                 (db_user_exists, db_user_active) = (True, ldap_active)
-                logging.info(f"Added filedb user: {email} (Active: {ldap_active})")
                 unchanged = False
 
             if not api_user_exists:
                 api.add_user(email, ldap_name, ldap_active)
                 (api_user_exists, api_user_active, api_name) = (True, ldap_active, ldap_name)
-                logging.info(f"Added Mailcow user: {email} (Active: {ldap_active})")
                 unchanged = False
 
             if db_user_active != ldap_active:
                 filedb.user_set_active_to(email, ldap_active)
-                logging.info(f"{'Activated' if ldap_active else 'Deactivated'} {email} in filedb")
                 unchanged = False
 
             if api_user_active != ldap_active:
-                api.edit_user(email, active=ldap_active)
-                logging.info(f"{'Activated' if ldap_active else 'Deactivated'} {email} in Mailcow")
+                api.edit_user(email, ldap_active)
+                logging.info(f"{'[ A ]' if ldap_active else '[ D ]'} [API] [ User  ] {email} - (A)ctiveted/(D)eactivated user in mailcow")
                 unchanged = False
 
             if api_name != ldap_name:
                 api.edit_user(email, name=ldap_name)
-                logging.info(f"Changed name of {email} in Mailcow to {ldap_name}")
+                logging.info(f"[CHG] [API] [ User  ] {email}: {ldap_name} - changed name of user in LDAP")
                 unchanged = False
 
             if unchanged:
-                logging.info(f"Checked user {email}, unchanged")
+                logging.info(f"[OK!] [ ~ ] [ User  ] Checked user {email}, unchanged...")
+
+            ldap_user_aliases = []
+            if "proxyAddresses" in x[1]:
+                for a in x[1]['proxyAddresses']:
+                    ldap_alias = a.decode().replace("smtp:", "")
+                    ldap_user_aliases.append(ldap_alias)
+
+                    (db_alias_exists, db_alias_goto, db_alias_active) = filedb.check_alias(ldap_alias)
+                    (api_alias_exists, api_alias_address, api_alias_goto, api_alias_active) = api.check_alias(ldap_alias)
+
+                    unchanged = True
+
+                    if not db_alias_exists:
+                        filedb.add_alias(ldap_alias, email, ldap_active)
+                        (db_alias_exists, db_alias_active) = (True, ldap_active)
+                        unchanged = False
+
+                    if not api_alias_exists:
+                        api.add_alias(ldap_alias, email)
+                        (api_alias_exists, api_alias_goto, api_alias_active) = (True, email, True)
+                        unchanged = False
+
+                    if db_alias_active != ldap_active:
+                        filedb.alias_set_active_to(ldap_alias, ldap_active)
+                        unchanged = False
+
+                    if api_alias_active != ldap_active:
+                        api.edit_alias(ldap_alias, email, ldap_active)
+                        logging.info(f"{'[ A ]' if ldap_active else '[ D ]'} [API] [ Alias ] {ldap_alias} - (A)ctiveted/(D)eactivated alias in mailcow")
+                        unchanged = False
+                    
+                    if unchanged:
+                        logging.info(f"[OK!] [ ~ ] [ Alias ] Checked alias {ldap_alias} => {email}, unchanged...")
 
         except Exception:
+            #DEBUG
+            print(traceback.format_exc())
+            #DEBUG
             logging.info(f"Exception during handling of {x}")
             pass
 
@@ -139,13 +172,11 @@ def sync():
             if not db_alias_exists:
                 filedb.add_alias(alias_address, alias_goto)
                 (db_alias_exists, db_alias_goto) = (True, alias_goto)
-                logging.info(f"Added filedb alias: {alias_address} (Goto: {alias_goto})")
                 unchanged = False
 
             if not api_alias_exists:
                 api.add_alias(alias_address, alias_goto)
                 (api_alias_exists, api_alias_goto, api_alias_active) = (True, alias_goto, True)
-                logging.info(f"Added Mailcow alias: {alias_address} (Goto: {alias_goto})")
                 unchanged = False
 
             if db_alias_goto != alias_goto:
@@ -164,7 +195,7 @@ def sync():
                 unchanged = False
 
             if unchanged:
-                logging.info(f"Checked alias {alias_address}, unchanged")          
+                logging.info(f"[OK!] [ ~ ] [ Alias ] Checked alias {alias_address}, unchanged")
 
         except Exception:
             #DEBUG
@@ -173,25 +204,24 @@ def sync():
             logging.info(f"Exception during handling of {x}")
             pass            
 
+    logging.info("=== Check for deleted users in LDAP ===")
     for email in filedb.get_unchecked_active_users():
         (api_user_exists, api_user_active, _) = api.check_user(email)
 
         if api_user_active and api_user_active:
             api.edit_user(email, active=False)
-            logging.info(f"Deactivated user {email} in Mailcow, not found in LDAP")
+            logging.info(f"[ D ] [API] [ User  ] {email} - deactivating user in mailcow, not found in LDAP (you can delete it manually)")
 
         filedb.user_set_active_to(email, False)
-        logging.info(f"Deactivated user {email} in filedb, not found in LDAP")
 
+    logging.info("=== Check for deleted aliases in LDAP ===")
     for address in filedb.get_unchecked_aliases():
         (api_alias_exists, api_alias_address, api_alias_goto, api_alias_active) = api.check_alias(address)
 
-        if api_alias_exists and api_alias_active:
+        if api_alias_exists:
             api.delete_alias(address)
-            logging.info(f"Deleting Alias {address} in Mailcow, not found in LDAP")
 
         filedb.alias_set_active_to(address, False)
-        logging.info(f"Deactivated Alias {address} in filedb, not found in LDAP")
 
 
 def apply_config(config_file, config_data):

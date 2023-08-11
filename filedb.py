@@ -36,7 +36,6 @@ Session.configure(bind=db_engine)
 session = Session()
 session_time = datetime.datetime.now()
 
-
 def get_unchecked_active_users():
     query = session.query(DbUser.email).filter(DbUser.last_seen != session_time).filter(DbUser.active == True)
     return [x.email for x in query]
@@ -48,10 +47,16 @@ def get_unchecked_aliases():
 def add_user(email, active=True):
     session.add(DbUser(email=email, active=active, last_seen=session_time))
     session.commit()
+    logging.info(f"[ + ] [fdb] [ User  ] {email} (Active: {active}) - added user in filedb")
+    # if aliases:
+    #     for a in aliases:
+    #         add_alias(a, email)
+    #         #logging.info(f" - alias {a} added in filedb")
 
 def add_alias(address, goto, active=True):
     session.add(DbAlias(address=address, goto=goto, active=active, last_seen=session_time))
     session.commit()
+    logging.info(f"[ + ] [fdb] [ Alias ] {address} => {goto} (Active: {active}) - added alias in filedb")
 
 def check_user(email):
     user = session.query(DbUser).filter_by(email=email).first()
@@ -73,11 +78,13 @@ def user_set_active_to(email, active):
     user = session.query(DbUser).filter_by(email=email).first()
     user.active = active
     session.commit()
+    logging.info(f"{'[ A ]' if active else '[ D ]'} [fdb] [ User  ] {email} - (A)ctiveted/(D)eactivated user in filedb")
 
 def alias_set_active_to(address, active):
     alias = session.query(DbAlias).filter_by(address=address).first()
     alias.active = active
     session.commit()
+    logging.info(f"{'[ A ]' if active else '[ D ]'} [fdb] [ Alias ] {address} - (A)ctiveted/(D)eactivated alias in filedb")
 
 def edit_alias_goto(address, goto):
     alias = session.query(DbAlias).filter_by(address=address).first()

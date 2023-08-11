@@ -1,6 +1,7 @@
 import random
 import string
 import sys
+import logging
 
 import requests
 
@@ -37,10 +38,10 @@ def add_user(email, name, active):
         'password': password,
         'password2': password,
         'quota': str(api_quota),
-        "active": 1 if active else 2 # Active: 0 = no incoming mail/no login, 1 = allow both, 2 = custom state: allow incoming mail/no login
+        "active": 1 if active else 0 # Active: 0 = no incoming mail/no login, 1 = allow both, 2 = custom state: allow incoming mail/no login
     }
-
     __post_request('api/v1/add/mailbox', json_data)
+    logging.info(f"[ + ] [API] [ User  ] {email} (Active: {active}) - added user in mailcow")
 
     json_data = {
         'items': [email],
@@ -63,18 +64,23 @@ def add_user(email, name, active):
             ]
         }
     }
-
     __post_request('api/v1/edit/user-acl', json_data)
 
-def add_alias(address, goto):
+    # if aliases:
+    #     #logging.info(f"User: {email} has aliases")
+    #     for a in aliases:
+    #         add_alias(a, email)
+    #         #logging.info(f"- alias {a} added in Mailcow")
+
+def add_alias(address, goto, active=True):
     json_data = {
-        'active': 1,
+        'active': active,
         'address': address,
         'goto': goto,
         'sogo_visible': True
     }
-
     __post_request('api/v1/add/alias', json_data)
+    logging.info(f"[ + ] [API] [ Alias ] {address} => {goto} (Active: {active}) - added alias in mailcow")
 
 def edit_user(email, active=None, name=None):
     attr = {}
@@ -82,14 +88,11 @@ def edit_user(email, active=None, name=None):
         attr['active'] = 1 if active else 0
     if name is not None:
         attr['name'] = name
-
     json_data = {
         'items': [email],
         'attr': attr
     }
-
     __post_request('api/v1/edit/mailbox', json_data)
-
 
 def edit_alias(address, goto, active=None):
     attr = {}
@@ -97,26 +100,21 @@ def edit_alias(address, goto, active=None):
         attr['active'] = 1 if active else 0
     attr['address'] = address
     attr['goto'] = goto
-    
     json_data = {
         'items': [address],
         'attr': attr
     }
-
     __post_request('api/v1/edit/alias', json_data)    
-
 
 def __delete_user(email):
     json_data = [email]
-
     __post_request('api/v1/delete/mailbox', json_data)
-
+    logging.info(f"[DEL] [API] [ User  ] {email} - deleting user in mailcow")
 
 def delete_alias(address):
     json_data = [address]
-
     __post_request('api/v1/delete/alias', json_data)
-
+    logging.info(f"[DEL] [API] [ Alias ] {address} - deleting alias in mailcow")
 
 # Returns (api_user_exists, api_user_active, api_name)
 def check_user(email):

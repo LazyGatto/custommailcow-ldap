@@ -2,3 +2,5 @@ db
 conf
 __pycache__
 .vscode
+set_env.sh
+sync_dev.sh
