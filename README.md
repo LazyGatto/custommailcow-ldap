@@ -24,10 +24,10 @@ A python script periodically checks and creates new LDAP accounts and deactivate
     version: '2.1'
     services:
 
-        LDAP_MAILCOW:
+        ldap-mailcow:
             image: 'ghcr.io/lazygatto/custommailcow-ldap:latest'
             network_mode: host
-            container_name: mailcowcustomized_LDAP_MAILCOW
+            container_name: mailcowcustomized_ldap-mailcow
             depends_on:
                 - nginx-mailcow
             volumes:
