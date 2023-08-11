@@ -17,6 +17,13 @@ class DbUser(Base):  # type: ignore
     active = Column(Boolean, nullable=False)
     last_seen = Column(DateTime, nullable=False)
 
+class DbAlias(Base):
+    __tablename__ = 'aliases'
+    address = Column(String, primary_key=True)
+    goto = Column(String, nullable=False)
+    active = Column(Boolean, nullable=False)
+    last_seen = Column(DateTime, nullable=False)    
+
 
 Session = sessionmaker()
 
@@ -32,14 +39,19 @@ session_time = datetime.datetime.now()
 
 def get_unchecked_active_users():
     query = session.query(DbUser.email).filter(DbUser.last_seen != session_time).filter(DbUser.active == True)
-
     return [x.email for x in query]
 
+def get_unchecked_aliases():
+    query = session.query(DbAlias.address).filter(DbAlias.last_seen != session_time).filter(DbAlias.active == True)
+    return [x.address for x in query]
 
 def add_user(email, active=True):
     session.add(DbUser(email=email, active=active, last_seen=session_time))
     session.commit()
 
+def add_alias(address, goto, active=True):
+    session.add(DbAlias(address=address, goto=goto, active=active, last_seen=session_time))
+    session.commit()
 
 def check_user(email):
     user = session.query(DbUser).filter_by(email=email).first()
@@ -49,8 +61,25 @@ def check_user(email):
     session.commit()
     return True, user.active
 
+def check_alias(address):
+    alias = session.query(DbAlias).filter_by(address=address).first()
+    if alias is None:
+        return False, False, False
+    alias.last_seen = session_time
+    session.commit()
+    return True, alias.goto, alias.active
 
 def user_set_active_to(email, active):
     user = session.query(DbUser).filter_by(email=email).first()
     user.active = active
+    session.commit()
+
+def alias_set_active_to(address, active):
+    alias = session.query(DbAlias).filter_by(address=address).first()
+    alias.active = active
+    session.commit()
+
+def edit_alias_goto(address, goto):
+    alias = session.query(DbAlias).filter_by(address=address).first()
+    alias.goto = goto
     session.commit()
