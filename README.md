@@ -7,6 +7,7 @@ Adds LDAP accounts, user aliases and group aliases to mailcow-dockerized and ena
   * [User Aliases](#user-aliases)
   * [LDAP Fine-tuning](#ldap-fine-tuning)
 * [Limitations](#limitations)
+  * [Startup problem](#startup-problem)
   * [WebUI and EAS authentication](#webui-and-eas-authentication)
   * [Two-way sync](#two-way-sync)
 * [Customizations and Integration support](#customizations-and-integration-support)
@@ -34,6 +35,7 @@ A python script periodically checks and creates new LDAP accounts and deactivate
                 - ./data/ldap:/db:rw
                 - ./data/conf/dovecot:/conf/dovecot:rw
                 - ./data/conf/sogo:/conf/sogo:rw
+            restart: unless-stopped
             environment:
                 - LDAP_MAILCOW_LDAP_URI=ldap(s)://dc.example.local
                 - LDAP_MAILCOW_LDAP_GC_URI=ldap://dc.example.local:3268
@@ -70,13 +72,13 @@ A python script periodically checks and creates new LDAP accounts and deactivate
         * `LDAP_MAILCOW_LDAP_GROUP_FILTER` - LDAP filter to apply, for finding group mail and create aliases, defaults to `(&(objectClass=group)(mail=*))`
         * `LDAP_MAILCOW_LDAP_GROUP_MEMBER_FILTER` - LDAP filter to apply, for finding group member mail for adding into aliases, defaults to `(&(objectClass=person)(mail=*)(distinguishedName={MEMBER_CN}))`, keep `{MEMBER_CN}`, as it will replaced while running the script.
 
-4. Start additional container: `docker compose up -d LDAP_MAILCOW`
-5. Check logs `docker compose logs LDAP_MAILCOW`
+4. Start additional container: `docker compose up -d ldap-mailcow`
+5. Check logs `docker compose logs ldap-mailcow` (or `docker compose logs --tail=100 ldap-mailcow` to reduce logs output)
 6. Restart dovecot and SOGo if necessary `docker compose restart sogo-mailcow dovecot-mailcow`
 
 ### User Aliases
 
-This version has support for user aliases too. They needed to be set in Active Directory in `proxyAddresses` attribute.
+This version of script has support for user aliases too. They needed to be set in Active Directory in `proxyAddresses` attribute.
 Format records in such way: `smtp:username@domain.com`
 You can add as many aliases as you need for every user.
 
@@ -94,11 +96,16 @@ If necessary, you can edit and remount them through docker volumes. Some documen
 
 ## Limitations
 
+### Startup problem
+
+While restart all containers with `docker compose up` **ldap-mailcow** may stop due to error, because API not ready. It has to be done in `depends` directive, or 
+so on. But I dont have idea how to do that for now ;)
+
 ### WebUI and EAS authentication
 
 This tool enables authentication for Dovecot and SOGo, which means you will be able to log into POP3, SMTP, IMAP, and SOGo Web-Interface. **You will not be able to log into mailcow UI or EAS using your LDAP credentials by default.**
 
-As a workaround, you can hook IMAP authentication directly to mailcow by adding the following code above [this line](https://github.com/mailcow/mailcow-dockerized/blob/48b74d77a0c39bcb3399ce6603e1ad424f01fc3e/data/web/inc/functions.inc.php#L608):
+As a workaround, you can hook IMAP authentication directly to mailcow by adding the following code above [this line](https://github.com/mailcow/mailcow-dockerized/blob/d6c3c58f429a4cd9d4bcf6f2f3ab0dc2c13b00f8/data/web/inc/functions.inc.php#L987):
 
 ```php
     $mbox = imap_open ("{dovecot:993/imap/ssl/novalidate-cert}INBOX", $user, $pass);
@@ -118,5 +125,7 @@ Users from your LDAP directory will be added (and deactivated if disabled/not fo
 
 Original tool was created by [Programmierus](https://github.com/Programmierus/LDAP_MAILCOW).
 This version is fork from fork by [rinkp](https://github.com/rinkp/custommailcow-ldap)
+
+If you run your mailcow serevr behind Nginx Proxy Manager - you can check [this repo](https://github.com/LazyGatto/npm-cert-export) with additional script to export SSL certificate into mailcow.
 
 **You can always [contact me](mailto:lazygatto@gmail.com) to help you with the integration or for custom modifications on a paid basis. My current hourly rate (ActivityWatch tracked) is 50$ with 3h minimum commitment.**

@@ -1,6 +1,8 @@
 db
 conf
 __pycache__
+.DS_Store
 .vscode
 set_env.sh
 sync_dev.sh
+sync_crt.sh
