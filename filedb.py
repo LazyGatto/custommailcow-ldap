@@ -44,14 +44,6 @@ def get_unchecked_aliases():
     query = session.query(DbAlias.address).filter(DbAlias.last_seen != session_time).filter(DbAlias.active == True)
     return [x.address for x in query]
 
-def add_user(email, active=True):
-    session.add(DbUser(email=email, active=active, last_seen=session_time))
-    session.commit()
-    logging.info(f"[ + ] [fdb] [ User  ] {email} (Active: {active}) - added user in filedb")
-    # if aliases:
-    #     for a in aliases:
-    #         add_alias(a, email)
-    #         #logging.info(f" - alias {a} added in filedb")
 
 def add_alias(address, goto, active=True):
     session.add(DbAlias(address=address, goto=goto, active=active, last_seen=session_time))
