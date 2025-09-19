@@ -48,6 +48,11 @@ def sync():
             # LDAP Search still returns invalid objects, test instead of throw.
             if not x[0]:
                 continue
+            
+            # Skip objects without mail attribute
+            if 'mail' not in x[1]:
+                continue
+                
             email = x[1]['mail'][0].decode()
             ldap_active = False if int(x[1]['userAccountControl'][0].decode()) & 0b10 else True
 
